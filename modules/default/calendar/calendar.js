@@ -647,6 +647,7 @@ Module.register("calendar", {
 				event.tomorrow = !event.today && event.startDate >= today + ONE_DAY && event.startDate < today + 2 * ONE_DAY;
 				event.dayAfterTomorrow = !event.tomorrow && event.startDate >= today + ONE_DAY * 2 && event.startDate < today + 3 * ONE_DAY;
 
+
 				/*
 				 * if sliceMultiDayEvents is set to true, multiday events (events exceeding at least one midnight) are sliced into days,
 				 * otherwise, esp. in dateheaders mode it is not clear how long these events are.
@@ -717,14 +718,17 @@ Module.register("calendar", {
 		if (this.config.limitDays > 0) {
 			let newEvents = [];
 			let lastDate = today.clone().subtract(1, "days").format("YYYYMMDD");
+			// console.log(`lastDate calculated is: ${lastDate}`);
 			let days = 0;
 			for (const ev of events) {
 				let eventDate = moment(ev.startDate, "x").format("YYYYMMDD");
+				// Log.log(`eventDate is: ${eventDate} lastDate is: ${lastDate} for event: ${ev.title}, ${ev.startDate} - ${ev.endDate}`);
 
-				/*
-				 * if date of event is later than lastdate
-				 * check if we already are showing max unique days
-				 */
+				if (this.config.limitDays === 1 && ev.yesterday) {
+					Log.debug(`Skipping event from yesterday: ${ev.title}`);
+					continue;
+				}
+
 				if (eventDate > lastDate) {
 					// if the only entry in the first day is a full day event that day is not counted as unique
 					if (!this.config.limitDaysNeverSkip && newEvents.length === 1 && days === 1 && newEvents[0].fullDayEvent) {
@@ -732,6 +736,7 @@ Module.register("calendar", {
 					}
 					days++;
 					if (days > this.config.limitDays) {
+						Log.debug(`this event is skipped: ${ev.title}, ${ev.startDate} - ${ev.endDate} with eventDate: ${eventDate} and lastDate: ${lastDate}`);
 						continue;
 					} else {
 						lastDate = eventDate;
@@ -740,6 +745,13 @@ Module.register("calendar", {
 				newEvents.push(ev);
 			}
 			events = newEvents;
+			Log.info(`events: ${events.length} after limiting to ${this.config.limitDays} days`);
+			events.forEach((event) => {
+				Log.info("Event Attributes:");
+				for (const [key, value] of Object.entries(event)) {
+					Log.debug(`${key}: ${value}`);
+				}
+			});
 		}
 		Log.info(`slicing events total maxcount=${this.config.maximumEntries}`);
 		return events.slice(0, this.config.maximumEntries);
